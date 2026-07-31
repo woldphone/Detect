@@ -16,6 +16,8 @@ fun IncidentsScreen(
         events = events,
         stats = stats,
         onPurgeOldLogs = { viewModel.purgeOldLogs() },
-        onClearDatabase = { viewModel.clearDatabase() }
+        onClearDatabase = { viewModel.clearDatabase() },
+        readDiagnostics = { viewModel.readDiagnostics() },
+        clearDiagnostics = { viewModel.clearDiagnostics() }
     )
 }

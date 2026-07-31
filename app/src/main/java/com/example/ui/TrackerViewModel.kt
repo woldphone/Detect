@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.BleDeviceEntity
 import com.example.data.BleRepository
+import com.example.data.CrashLogger
 import com.example.data.ProximityEventEntity
 import com.example.data.WhitelistedDeviceEntity
 import kotlinx.coroutines.Job
@@ -32,6 +33,10 @@ class TrackerViewModel(application: Application) : AndroidViewModel(application)
     // Scanning state
     private val _isScanning = MutableStateFlow(true)
     val isScanning: StateFlow<Boolean> = _isScanning
+
+    // Context-Aware Motion State ("WALKING" vs "STILL")
+    private val _motionState = MutableStateFlow("WALKING")
+    val motionState: StateFlow<String> = _motionState
 
     // Database flow bindings
     val allDevices: StateFlow<List<BleDeviceEntity>> = repository.allDevices
@@ -65,42 +70,50 @@ class TrackerViewModel(application: Application) : AndroidViewModel(application)
     private var baseLon = -122.4194
 
     init {
+        CrashLogger.logSystemEvent("TrackerViewModel Initialized")
         startMockScanningLoop()
     }
 
     fun setTab(tab: TrackerTab) {
         _selectedTab.value = tab
+        CrashLogger.logSystemEvent("UI Switched Tab to: $tab")
     }
 
     fun setSelectedDeviceForMap(macAddress: String?) {
         _selectedDeviceForMap.value = macAddress
+        CrashLogger.logSystemEvent("Map focus set to MAC: ${macAddress ?: "All"}")
     }
 
     fun whitelistDevice(macAddress: String, name: String) {
         repository.addManualWhitelist(macAddress, name)
+        CrashLogger.logSystemEvent("Device manually whitelisted: Name='$name', MAC=$macAddress")
     }
 
     fun removeFromWhitelist(macAddress: String) {
         repository.deleteIgnoredDevice(macAddress)
+        CrashLogger.logSystemEvent("Device removed from whitelist: MAC=$macAddress")
     }
 
     fun toggleIgnoreDevice(device: BleDeviceEntity) {
         repository.toggleIgnoreDevice(device.macAddress, device.name, !device.isIgnored)
+        CrashLogger.logSystemEvent("Toggled ignore state for ${device.macAddress} to: ${!device.isIgnored}")
     }
 
     fun purgeOldLogs() {
-        // Cutoff older than 7 days
         val cutoff = System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000)
         repository.purgeOldLogs(cutoff)
+        CrashLogger.logSystemEvent("Purged historical logs older than 7 days")
     }
 
     fun clearDatabase() {
         repository.clearDatabase()
+        CrashLogger.logSystemEvent("Cleared all proximity events and tracked devices from database")
     }
 
     fun toggleScan() {
         val nextState = !_isScanning.value
         _isScanning.value = nextState
+        CrashLogger.logSystemEvent("Toggled scanner state to: ${if (nextState) "ACTIVE" else "STOPPED"}")
         if (nextState) {
             startMockScanningLoop()
         } else {
@@ -108,53 +121,72 @@ class TrackerViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun setMotionState(state: String) {
+        _motionState.value = state
+        CrashLogger.logSystemEvent("Context Activity changed to: $state. Scan rate auto-throttled.")
+    }
+
+    fun readDiagnostics(): String {
+        return CrashLogger.readLogs()
+    }
+
+    fun clearDiagnostics() {
+        CrashLogger.clearLogs()
+    }
+
     private fun startMockScanningLoop() {
         stopMockScanningLoop()
         scannerSimulationJob = viewModelScope.launch {
-            // Keep simulating pings as long as scanning is on
             var tick = 0
             while (true) {
-                delay(3000) // periodic ping simulation
+                // Read current motion state and throttle scan frequency
+                val currentMotion = _motionState.value
+                val scanDelay = if (currentMotion == "STILL") 10000L else 3000L
+                delay(scanDelay)
                 tick++
 
-                // Shift base location slightly to simulate walking/movement
-                baseLat += (Random.nextDouble() - 0.5) * 0.0003
-                baseLon += (Random.nextDouble() - 0.5) * 0.0003
+                // Shift coordinates only when active (simulating walking/driving)
+                if (currentMotion == "WALKING") {
+                    baseLat += (Random.nextDouble() - 0.5) * 0.0003
+                    baseLon += (Random.nextDouble() - 0.5) * 0.0003
+                }
 
-                // Simulate 1 standard device (e.g. user smartwatch or random passerby)
+                // Simulate Smart Payload Parsing & Telemetry Logging
                 if (tick % 2 == 0) {
+                    val rawRssi = Random.nextInt(-85, -45)
+                    CrashLogger.logSystemEvent("Parsed BLE payload [Sony WH-1000XM4] -> Service UUID: 0x0002, ConnectionState: Active, Signal Strength: $rawRssi dBm")
                     repository.processScannedDevice(
                         macAddress = "E3:42:1B:90:05:A1",
                         name = "Sony WH-1000XM4",
                         deviceType = "Audio Device",
-                        rssi = Random.nextInt(-85, -45),
+                        rssi = rawRssi,
                         currentLat = baseLat + (Random.nextDouble() - 0.5) * 0.0001,
                         currentLon = baseLon + (Random.nextDouble() - 0.5) * 0.0001
                     )
                 }
 
-                // Simulate a persistent tracking device (airtag/smarttag following the user)
-                // This triggers the stalker calculation logic and creates alerts
                 if (tick % 3 == 0) {
+                    val rawRssi = Random.nextInt(-75, -50)
+                    CrashLogger.logSystemEvent("Parsed BLE payload [Apple AirTag] -> Service UUID: 0xFD44, BatteryTelemetry: OK, Signal Strength: $rawRssi dBm")
                     repository.processScannedDevice(
                         macAddress = "D8:96:A7:24:FC:F0",
                         name = "Apple AirTag (Unrecognized)",
                         deviceType = "AirTag / Smart Tag",
-                        rssi = Random.nextInt(-75, -50),
-                        // Very close to the user's current moving location (simulating stalker proximity)
+                        rssi = rawRssi,
                         currentLat = baseLat + (Random.nextDouble() - 0.5) * 0.00008,
                         currentLon = baseLon + (Random.nextDouble() - 0.5) * 0.00008
                     )
                 }
 
-                // Occasionally simulate another unknown BLE beacon passing by (seen once)
                 if (tick % 5 == 0) {
+                    val rawRssi = Random.nextInt(-95, -70)
+                    CrashLogger.logSystemEvent("Parsed BLE payload [Tile Slim] -> Service UUID: 0xFEED, BatteryTelemetry: Good, Signal Strength: $rawRssi dBm")
                     repository.processScannedDevice(
                         macAddress = "FF:EE:DD:CC:BB:AA",
                         name = "Tile Slim",
                         deviceType = "BLE Beacon",
-                        rssi = Random.nextInt(-95, -70),
-                        currentLat = baseLat + 0.0015, // far away
+                        rssi = rawRssi,
+                        currentLat = baseLat + 0.0015,
                         currentLon = baseLon - 0.0012
                     )
                 }
