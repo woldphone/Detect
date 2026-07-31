@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import com.example.data.CrashLogger
 import com.example.ui.TrackerTab
 import com.example.ui.TrackerViewModel
 import com.example.ui.screens.DashboardScreen
@@ -55,6 +56,9 @@ class MainActivity : ComponentActivity() {
     private val viewModel: TrackerViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Initialize the Uncaught Exception Handler and System Logger
+        CrashLogger.init(applicationContext)
+
         super.onCreate(savedInstanceState)
 
         setContent {
@@ -113,4 +117,9 @@ fun MainAppLayout(viewModel: TrackerViewModel) {
             }
         }
     }
+}
+
+@Composable
+fun Greeting(name: String) {
+    Text(text = "Hello $name!")
 }

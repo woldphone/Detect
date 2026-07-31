@@ -1,8 +1,33 @@
 package com.example.data
 
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.*
 
 object SmartLoggingEngine {
+
+    private val rssiHistory = ConcurrentHashMap<String, MutableList<Int>>()
+
+    /**
+     * Smooths out raw RSSI volatility using a sliding-window average of size 5.
+     */
+    fun getSmoothedRssi(macAddress: String, rawRssi: Int): Int {
+        val history = rssiHistory.getOrPut(macAddress) { Collections.synchronizedList(mutableListOf()) }
+        synchronized(history) {
+            history.add(rawRssi)
+            if (history.size > 5) {
+                history.removeAt(0)
+            }
+            return history.average().toInt()
+        }
+    }
+
+    /**
+     * Clears signal histories when resetting/clearing database.
+     */
+    fun clearSignalHistories() {
+        rssiHistory.clear()
+    }
 
     /**
      * Calculates the distance in meters between two lat/lon coordinates using Haversine formula.
@@ -50,7 +75,8 @@ object SmartLoggingEngine {
 
     /**
      * Evaluates if a BLE device meets stalker / tracking threat thresholds.
-     * Evaluates distinct spatial clusters and temporal span.
+     * Integrates Trajectory Co-location and Time-of-Arrival (ToA) correlation
+     * to distinguish stationary background signals from active stalkers.
      */
     fun calculateStalkerRisk(
         events: List<ProximityEventEntity>,
@@ -58,9 +84,19 @@ object SmartLoggingEngine {
     ): Pair<Int, Boolean> {
         if (events.size < 2) return Pair(0, false)
 
-        // Count distinct location clusters (> 80 meters apart)
+        val sortedEvents = events.sortedBy { it.timestamp }
+        val firstEvent = sortedEvents.first()
+        val lastEvent = sortedEvents.last()
+
+        // 1. Calculate overall distance between first and last encounter (to check if it travels with us)
+        val spanDistance = calculateDistanceMeters(
+            firstEvent.latitude, firstEvent.longitude,
+            lastEvent.latitude, lastEvent.longitude
+        )
+
+        // 2. Count distinct spatial location clusters (> 80 meters apart)
         val clusters = mutableListOf<Pair<Double, Double>>()
-        for (event in events) {
+        for (event in sortedEvents) {
             val isDistinct = clusters.none { (cLat, cLon) ->
                 calculateDistanceMeters(cLat, cLon, event.latitude, event.longitude) < 80.0
             }
@@ -69,38 +105,44 @@ object SmartLoggingEngine {
             }
         }
 
-        val firstTimestamp = events.firstOrNull()?.timestamp ?: 0L
-        val lastTimestamp = events.lastOrNull()?.timestamp ?: 0L
-        val timeSpanSpanMinutes = (lastTimestamp - firstTimestamp) / (1000 * 60)
+        val firstTimestamp = firstEvent.timestamp
+        val lastTimestamp = lastEvent.timestamp
+        val timeSpanMinutes = (lastTimestamp - firstTimestamp) / (1000 * 60)
 
         val clusterCount = clusters.size
 
-        // Threat rules:
-        // 1. Detected across >= 3 separate location clusters -> High Threat
-        // 2. Detected in >= 2 location clusters spanning >= 10 minutes -> Medium-High Threat
-        // 3. Repeated pings over 20+ minutes even if localized -> Low-Medium Risk
+        // Trajectory Correlation Rule:
+        // If seen frequently over a long time (>5 minutes) but always within the exact same location/cluster
+        // (spanDistance < 20 meters), it is a static neighbor or office beacon, NOT a stalker!
+        val isStaticBeacon = spanDistance < 20.0 && timeSpanMinutes > 5
 
         var riskScore = 0
-        if (clusterCount >= 3) {
-            riskScore += 60 + (clusterCount - 3) * 15
-        } else if (clusterCount == 2) {
-            riskScore += 35
+        if (isStaticBeacon) {
+            // Highly suppressed risk because it doesn't move with the user's trajectory
+            riskScore = 5
         } else {
-            riskScore += 10
-        }
+            // Mobile Threat Evaluation (Active Trajectory Correlation)
+            if (clusterCount >= 3) {
+                riskScore += 60 + (clusterCount - 3) * 15
+            } else if (clusterCount == 2) {
+                riskScore += 35
+            } else {
+                riskScore += 10
+            }
 
-        if (timeSpanSpanMinutes >= 15) {
-            riskScore += 30
-        } else if (timeSpanSpanMinutes >= 8) {
-            riskScore += 15
-        }
+            if (timeSpanMinutes >= 15) {
+                riskScore += 30
+            } else if (timeSpanMinutes >= 8) {
+                riskScore += 15
+            }
 
-        if (deviceSightingCount >= 4) {
-            riskScore += 15
+            if (deviceSightingCount >= 4) {
+                riskScore += 15
+            }
         }
 
         val finalScore = min(100, max(0, riskScore))
-        val isAlert = finalScore >= 60 || clusterCount >= 3
+        val isAlert = finalScore >= 60 && !isStaticBeacon
 
         return Pair(finalScore, isAlert)
     }

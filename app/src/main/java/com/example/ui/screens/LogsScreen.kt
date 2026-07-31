@@ -14,20 +14,30 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -52,8 +62,12 @@ fun LogsScreen(
     events: List<ProximityEventEntity>,
     stats: SmartLoggingStats,
     onPurgeOldLogs: () -> Unit,
-    onClearDatabase: () -> Unit
+    onClearDatabase: () -> Unit,
+    readDiagnostics: () -> String = { "No diagnostics available." },
+    clearDiagnostics: () -> Unit = {}
 ) {
+    var showDiagnosticsDialog by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -77,7 +91,7 @@ fun LogsScreen(
         // Database Action Toolbar
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Button(
                 onClick = onPurgeOldLogs,
@@ -94,10 +108,31 @@ fun LogsScreen(
                 Icon(
                     imageVector = Icons.Default.CleaningServices,
                     contentDescription = null,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(14.dp)
                 )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Purge >7 Days", fontSize = 11.sp)
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Purge >7D", fontSize = 10.sp)
+            }
+
+            Button(
+                onClick = { showDiagnosticsDialog = true },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = SentinelPurplePrimary.copy(alpha = 0.2f),
+                    contentColor = SentinelPurplePrimary
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(42.dp)
+                    .testTag("diagnostics_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.BugReport,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Diagnostics", fontSize = 10.sp)
             }
 
             OutlinedButton(
@@ -112,10 +147,10 @@ fun LogsScreen(
                     imageVector = Icons.Default.Delete,
                     contentDescription = null,
                     tint = SentinelAlertText,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(14.dp)
                 )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Reset All", fontSize = 11.sp, color = SentinelAlertText)
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Reset All", fontSize = 10.sp, color = SentinelAlertText)
             }
         }
 
@@ -192,5 +227,76 @@ fun LogsScreen(
                 }
             }
         }
+    }
+
+    // Diagnostics System Dialog Console Overlay
+    if (showDiagnosticsDialog) {
+        val diagnosticsText = readDiagnostics()
+        AlertDialog(
+            onDismissRequest = { showDiagnosticsDialog = false },
+            containerColor = SentinelCardBg,
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.BugReport,
+                    contentDescription = null,
+                    tint = SentinelPurplePrimary
+                )
+            },
+            title = {
+                Text(
+                    text = "Sentinel Diagnostics Console",
+                    color = SentinelTextPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Uncaught crashes and active trace logs are stored here dynamically.",
+                        color = SentinelTextMuted,
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(260.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(SentinelBg)
+                            .padding(8.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            Text(
+                                text = diagnosticsText,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 10.sp,
+                                color = SentinelTextPrimary,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        clearDiagnostics()
+                        showDiagnosticsDialog = false
+                    }
+                ) {
+                    Text("Clear Logs", color = SentinelAlertText, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiagnosticsDialog = false }) {
+                    Text("Close", color = SentinelTextPrimary)
+                }
+            }
+        )
     }
 }

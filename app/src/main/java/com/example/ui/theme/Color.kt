@@ -30,6 +30,15 @@ val SentinelAlertCardBg = SentinelAlertRedBg
 val SentinelAlertText = SentinelAlertRedAccent
 val SentinelSuccessGreen = SentinelLiveGreen
 
+val DarkCardBg = SentinelCardBg
+val LiveGreen = SentinelSuccessGreen
+val AlertRedBorder = SentinelAlertRedBorder
+val AlertRedBg = SentinelAlertRedBg
+val AlertRedText = SentinelAlertText
+val TextMuted = SentinelTextMuted
+val TextPrimary = SentinelTextPrimary
+val SentinelPurple = SentinelPurplePrimary
+
 // Material 3 Dark Colors Mapping
 val Purple80 = SentinelPurplePrimary
 val PurpleGrey80 = SentinelChipBackground

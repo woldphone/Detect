@@ -5,6 +5,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import java.util.Collections
 
 class BleRepository private constructor(context: Context) {
 
@@ -12,9 +13,12 @@ class BleRepository private constructor(context: Context) {
     private val dao = db.bleDao()
     private val repositoryScope = CoroutineScope(Dispatchers.IO)
 
+    // Thread-safe in-memory log buffer to save battery by batching I/O writes
+    private val proximityEventBuffer = Collections.synchronizedList(mutableListOf<ProximityEventEntity>())
+
     val allDevices: Flow<List<BleDeviceEntity>> = dao.getAllDevicesFlow()
     val activeThreats: Flow<List<BleDeviceEntity>> = dao.getActiveThreatsFlow()
-    val ignoredDevices: Flow<List<IgnoredDeviceEntity>> = dao.getIgnoredDevicesFlow()
+    val ignoredDevices: Flow<List<WhitelistedDeviceEntity>> = dao.getIgnoredDevicesFlow()
     val recentEvents: Flow<List<ProximityEventEntity>> = dao.getRecentProximityEventsFlow(100)
     val allEvents: Flow<List<ProximityEventEntity>> = dao.getAllProximityEventsFlow()
     val deviceCount: Flow<Int> = dao.getDeviceCountFlow()
@@ -36,12 +40,15 @@ class BleRepository private constructor(context: Context) {
         val now = System.currentTimeMillis()
         val existingDevice = dao.getDeviceByMac(macAddress)
 
+        // RSSI Noise Smoothing Filter
+        val smoothedRssi = SmartLoggingEngine.getSmoothedRssi(macAddress, rssi)
+
         // Check if device is ignored / whitelisted
         if (existingDevice?.isIgnored == true) {
             // Update last seen timestamp but suppress logging
             val updated = existingDevice.copy(
                 lastSeen = now,
-                rssi = rssi,
+                rssi = smoothedRssi,
                 suppressedPingCount = existingDevice.suppressedPingCount + 1
             )
             dao.insertOrUpdateDevice(updated)
@@ -66,17 +73,30 @@ class BleRepository private constructor(context: Context) {
                 timestamp = now,
                 latitude = currentLat,
                 longitude = currentLon,
-                rssi = rssi
+                rssi = smoothedRssi
             )
-            dao.insertProximityEvent(event)
+
+            // Buffer in memory to minimize SQLite disk writes
+            proximityEventBuffer.add(event)
+
+            // Flush buffer if it has >= 3 events, or if it's a suspicious device type to ensure alert safety
+            val isSuspicious = deviceType == "AirTag / Smart Tag" || newSightings >= 3
+            if (proximityEventBuffer.size >= 3 || isSuspicious) {
+                flushProximityBuffer()
+            }
         } else {
             newSuppressed += 1
         }
 
-        // Fetch events for threat calculation
-        val deviceEvents = dao.getProximityEventsForDeviceList(macAddress)
+        // Fetch events for threat calculation (from DB + buffered in-memory)
+        val dbEvents = dao.getProximityEventsForDeviceList(macAddress)
+        val bufferedEvents = synchronized(proximityEventBuffer) {
+            proximityEventBuffer.filter { it.macAddress == macAddress }
+        }
+        val combinedEvents = (dbEvents + bufferedEvents).sortedBy { it.timestamp }
+
         val (riskScore, isStalker) = SmartLoggingEngine.calculateStalkerRisk(
-            events = deviceEvents,
+            events = combinedEvents,
             deviceSightingCount = newSightings
         )
 
@@ -84,7 +104,7 @@ class BleRepository private constructor(context: Context) {
             macAddress = macAddress,
             name = name ?: existingDevice?.name,
             deviceType = deviceType,
-            rssi = rssi,
+            rssi = smoothedRssi,
             isIgnored = existingDevice?.isIgnored ?: false,
             firstSeen = existingDevice?.firstSeen ?: now,
             lastSeen = now,
@@ -99,11 +119,24 @@ class BleRepository private constructor(context: Context) {
         dao.insertOrUpdateDevice(updatedDevice)
     }
 
+    @Synchronized
+    private fun flushProximityBuffer() {
+        if (proximityEventBuffer.isEmpty()) return
+        val listToFlush = ArrayList(proximityEventBuffer)
+        proximityEventBuffer.clear()
+
+        repositoryScope.launch {
+            listToFlush.forEach { event ->
+                dao.insertProximityEvent(event)
+            }
+        }
+    }
+
     fun toggleIgnoreDevice(macAddress: String, name: String?, isIgnored: Boolean) {
         repositoryScope.launch {
             dao.updateDeviceIgnoredState(macAddress, isIgnored)
             if (isIgnored) {
-                val ignored = IgnoredDeviceEntity(
+                val ignored = WhitelistedDeviceEntity(
                     macAddress = macAddress,
                     deviceName = name ?: "Whitelisted Device ($macAddress)",
                     addedAt = System.currentTimeMillis()
@@ -134,7 +167,7 @@ class BleRepository private constructor(context: Context) {
                 dao.insertOrUpdateDevice(newDevice)
             }
 
-            val ignored = IgnoredDeviceEntity(
+            val ignored = WhitelistedDeviceEntity(
                 macAddress = macAddress,
                 deviceName = name,
                 addedAt = now
@@ -152,8 +185,10 @@ class BleRepository private constructor(context: Context) {
 
     fun clearDatabase() {
         repositoryScope.launch {
+            proximityEventBuffer.clear()
             dao.clearProximityEvents()
             dao.clearDevices()
+            SmartLoggingEngine.clearSignalHistories()
         }
     }
 
