@@ -6,7 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [BleDeviceEntity::class, ProximityEventEntity::class, IgnoredDeviceEntity::class],
+    entities = [BleDeviceEntity::class, ProximityEventEntity::class, WhitelistedDeviceEntity::class],
     version = 1,
     exportSchema = false
 )

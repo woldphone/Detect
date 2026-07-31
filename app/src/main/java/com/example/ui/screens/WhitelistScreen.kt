@@ -35,6 +35,7 @@ fun WhitelistScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(SentinelBg)
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         // Header
@@ -42,12 +43,12 @@ fun WhitelistScreen(
             text = "Trusted Devices Whitelist",
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
-            color = SentinelPurple
+            color = SentinelPurplePrimary
         )
         Text(
             text = "Whitelisted devices (e.g. smartwatch, earbuds) will never trigger stalker alerts.",
             fontSize = 12.sp,
-            color = TextMuted
+            color = SentinelTextMuted
         )
 
         Spacer(modifier = Modifier.height(14.dp))
@@ -56,14 +57,14 @@ fun WhitelistScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = DarkCardBg)
+            colors = CardDefaults.cardColors(containerColor = SentinelCardBg)
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
                 Text(
                     text = "ADD TRUSTED DEVICE",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextMuted,
+                    color = SentinelTextMuted,
                     letterSpacing = 1.sp
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -75,12 +76,12 @@ fun WhitelistScreen(
                     modifier = Modifier.fillMaxWidth().testTag("whitelist_name_input"),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = SentinelPurple,
-                        unfocusedBorderColor = TextMuted,
-                        focusedLabelColor = SentinelPurple,
-                        unfocusedLabelColor = TextMuted,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
+                        focusedBorderColor = SentinelPurplePrimary,
+                        unfocusedBorderColor = SentinelTextMuted,
+                        focusedLabelColor = SentinelPurplePrimary,
+                        unfocusedLabelColor = SentinelTextMuted,
+                        focusedTextColor = SentinelTextPrimary,
+                        unfocusedTextColor = SentinelTextPrimary
                     )
                 )
 
@@ -93,12 +94,12 @@ fun WhitelistScreen(
                     modifier = Modifier.fillMaxWidth().testTag("whitelist_mac_input"),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = SentinelPurple,
-                        unfocusedBorderColor = TextMuted,
-                        focusedLabelColor = SentinelPurple,
-                        unfocusedLabelColor = TextMuted,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
+                        focusedBorderColor = SentinelPurplePrimary,
+                        unfocusedBorderColor = SentinelTextMuted,
+                        focusedLabelColor = SentinelPurplePrimary,
+                        unfocusedLabelColor = SentinelTextMuted,
+                        focusedTextColor = SentinelTextPrimary,
+                        unfocusedTextColor = SentinelTextPrimary
                     )
                 )
 
@@ -119,7 +120,7 @@ fun WhitelistScreen(
                         .fillMaxWidth()
                         .testTag("add_whitelist_button"),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = SentinelPurple
+                        containerColor = SentinelPurplePrimary
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -137,7 +138,7 @@ fun WhitelistScreen(
             text = "TRUSTED DEVICES (${whitelist.size})",
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            color = TextMuted,
+            color = SentinelTextMuted,
             letterSpacing = 1.sp
         )
 
@@ -153,7 +154,7 @@ fun WhitelistScreen(
                 Text(
                     text = "No trusted devices added yet.\nAdd your own headphones, watch, or laptop above.",
                     fontSize = 12.sp,
-                    color = TextMuted,
+                    color = SentinelTextMuted,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
@@ -180,7 +181,7 @@ fun WhitelistedDeviceCard(
             .fillMaxWidth()
             .testTag("whitelist_card_${device.macAddress}"),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkCardBg)
+        colors = CardDefaults.cardColors(containerColor = SentinelCardBg)
     ) {
         Row(
             modifier = Modifier
@@ -197,13 +198,13 @@ fun WhitelistedDeviceCard(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(CircleShape)
-                        .background(LiveGreen.copy(alpha = 0.15f)),
+                        .background(SentinelSuccessGreen.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.VerifiedUser,
                         contentDescription = "Trusted",
-                        tint = LiveGreen
+                        tint = SentinelSuccessGreen
                     )
                 }
 
@@ -212,13 +213,13 @@ fun WhitelistedDeviceCard(
                         text = device.deviceName,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary
+                        color = SentinelTextPrimary
                     )
                     Text(
                         text = "MAC: ${device.macAddress}",
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
-                        color = TextMuted
+                        color = SentinelTextMuted
                     )
                 }
             }
@@ -230,7 +231,7 @@ fun WhitelistedDeviceCard(
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Remove",
-                    tint = AlertRedText
+                    tint = SentinelAlertText
                 )
             }
         }

@@ -114,3 +114,8 @@ fun MainAppLayout(viewModel: TrackerViewModel) {
         }
     }
 }
+
+@Composable
+fun Greeting(name: String) {
+    Text(text = "Hello $name!")
+}

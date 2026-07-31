@@ -14,7 +14,7 @@ class BleRepository private constructor(context: Context) {
 
     val allDevices: Flow<List<BleDeviceEntity>> = dao.getAllDevicesFlow()
     val activeThreats: Flow<List<BleDeviceEntity>> = dao.getActiveThreatsFlow()
-    val ignoredDevices: Flow<List<IgnoredDeviceEntity>> = dao.getIgnoredDevicesFlow()
+    val ignoredDevices: Flow<List<WhitelistedDeviceEntity>> = dao.getIgnoredDevicesFlow()
     val recentEvents: Flow<List<ProximityEventEntity>> = dao.getRecentProximityEventsFlow(100)
     val allEvents: Flow<List<ProximityEventEntity>> = dao.getAllProximityEventsFlow()
     val deviceCount: Flow<Int> = dao.getDeviceCountFlow()
@@ -103,7 +103,7 @@ class BleRepository private constructor(context: Context) {
         repositoryScope.launch {
             dao.updateDeviceIgnoredState(macAddress, isIgnored)
             if (isIgnored) {
-                val ignored = IgnoredDeviceEntity(
+                val ignored = WhitelistedDeviceEntity(
                     macAddress = macAddress,
                     deviceName = name ?: "Whitelisted Device ($macAddress)",
                     addedAt = System.currentTimeMillis()
@@ -134,7 +134,7 @@ class BleRepository private constructor(context: Context) {
                 dao.insertOrUpdateDevice(newDevice)
             }
 
-            val ignored = IgnoredDeviceEntity(
+            val ignored = WhitelistedDeviceEntity(
                 macAddress = macAddress,
                 deviceName = name,
                 addedAt = now

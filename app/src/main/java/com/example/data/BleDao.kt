@@ -18,7 +18,7 @@ interface BleDao {
     suspend fun getDeviceByMac(macAddress: String): BleDeviceEntity?
 
     @Query("SELECT * FROM ignored_devices ORDER BY addedAt DESC")
-    fun getIgnoredDevicesFlow(): Flow<List<IgnoredDeviceEntity>>
+    fun getIgnoredDevicesFlow(): Flow<List<WhitelistedDeviceEntity>>
 
     @Query("SELECT * FROM proximity_events WHERE macAddress = :macAddress ORDER BY timestamp ASC")
     fun getProximityEventsForDeviceFlow(macAddress: String): Flow<List<ProximityEventEntity>>
@@ -39,7 +39,7 @@ interface BleDao {
     suspend fun insertProximityEvent(event: ProximityEventEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertIgnoredDevice(ignored: IgnoredDeviceEntity)
+    suspend fun insertIgnoredDevice(ignored: WhitelistedDeviceEntity)
 
     @Query("DELETE FROM ignored_devices WHERE macAddress = :macAddress")
     suspend fun deleteIgnoredDevice(macAddress: String)
