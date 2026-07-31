@@ -1,0 +1,6 @@
+{
+  "name": "BLE Tracker Guard",
+  "description": "Anti-stalking BLE device scanner & tracker detector with battery-efficient smart logging and event mapping.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
