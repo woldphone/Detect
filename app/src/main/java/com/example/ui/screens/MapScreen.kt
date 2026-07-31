@@ -2,7 +2,6 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -10,9 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,18 +24,16 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.BleEventEntity
+import com.example.data.ProximityEventEntity
 import com.example.ui.TrackerViewModel
 import com.example.ui.theme.*
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @Composable
 fun MapScreen(
     viewModel: TrackerViewModel
 ) {
     val events by viewModel.allEvents.collectAsState()
+    val devices by viewModel.allDevices.collectAsState()
     val threats by viewModel.activeThreats.collectAsState()
     val selectedMac by viewModel.selectedDeviceForMap.collectAsState()
 
@@ -46,13 +41,14 @@ fun MapScreen(
         if (selectedMac == null) events else events.filter { it.macAddress == selectedMac }
     }
 
-    val selectedDeviceName = remember(events, selectedMac) {
-        events.firstOrNull { it.macAddress == selectedMac }?.deviceName ?: "All Scanned Routes"
+    val selectedDeviceName = remember(devices, selectedMac) {
+        devices.firstOrNull { it.macAddress == selectedMac }?.name ?: "All Scanned Routes"
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(SentinelBg)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
@@ -67,19 +63,19 @@ fun MapScreen(
                     text = "GPS PROXIMITY MAPPING",
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        color = TextMuted,
+                        color = SentinelTextMuted,
                         letterSpacing = 1.2.sp
                     )
                 )
                 Text(
                     text = if (selectedMac != null) "Focus: $selectedDeviceName" else "Showing all proximity encounters",
-                    style = MaterialTheme.typography.labelSmall.copy(color = SentinelPurple)
+                    style = MaterialTheme.typography.labelSmall.copy(color = SentinelPurplePrimary)
                 )
             }
 
             if (selectedMac != null) {
                 TextButton(onClick = { viewModel.setSelectedDeviceForMap(null) }) {
-                    Text("Clear Filter", color = TextMuted, fontSize = 12.sp)
+                    Text("Clear Filter", color = SentinelTextMuted, fontSize = 12.sp)
                 }
             }
         }
@@ -95,7 +91,7 @@ fun MapScreen(
                     key = { it.macAddress }
                 ) { threat ->
                     Surface(
-                        color = if (selectedMac == threat.macAddress) AlertRedBorder else AlertRedBg,
+                        color = if (selectedMac == threat.macAddress) SentinelAlertRedBorder else SentinelAlertCardBg,
                         shape = RoundedCornerShape(20.dp),
                         modifier = Modifier
                             .clickable {
@@ -115,11 +111,11 @@ fun MapScreen(
                             Icon(
                                 imageVector = Icons.Default.LocationOn,
                                 contentDescription = null,
-                                tint = AlertRedText,
+                                tint = SentinelAlertText,
                                 modifier = Modifier.size(14.dp)
                             )
                             Text(
-                                text = threat.deviceName,
+                                text = threat.name ?: "Unknown BLE",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold
@@ -134,7 +130,7 @@ fun MapScreen(
         // Tactical Map Canvas Card
         Card(
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = DarkCardBg),
+            colors = CardDefaults.cardColors(containerColor = SentinelCardBg),
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
@@ -157,12 +153,12 @@ fun MapScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(LiveGreen))
+                            Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(SentinelSuccessGreen))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("User GPS", color = Color.White, fontSize = 10.sp)
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(AlertRedBorder))
+                            Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(SentinelAlertRedBorder))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Encounter Pin", color = Color.White, fontSize = 10.sp)
                         }
@@ -175,7 +171,7 @@ fun MapScreen(
         if (filteredEvents.isNotEmpty()) {
             Card(
                 shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = DarkCardBg),
+                colors = CardDefaults.cardColors(containerColor = SentinelCardBg),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -190,19 +186,19 @@ fun MapScreen(
                             text = "TOTAL PLOTTED POINTS: ${filteredEvents.size}",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = TextPrimary
+                                color = SentinelTextPrimary
                             )
                         )
                         Text(
                             text = "Filtered points on interactive grid",
-                            style = MaterialTheme.typography.labelSmall.copy(color = TextMuted)
+                            style = MaterialTheme.typography.labelSmall.copy(color = SentinelTextMuted)
                         )
                     }
 
                     Icon(
                         imageVector = Icons.Default.Navigation,
                         contentDescription = null,
-                        tint = SentinelPurple,
+                        tint = SentinelPurplePrimary,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -212,11 +208,11 @@ fun MapScreen(
 }
 
 @Composable
-fun TacticalGpsMapCanvas(events: List<BleEventEntity>) {
-    val gridLineColor = SentinelPurple.copy(alpha = 0.15f)
-    val pathColor = SentinelPurple.copy(alpha = 0.6f)
-    val pointColor = AlertRedBorder
-    val userColor = LiveGreen
+fun TacticalGpsMapCanvas(events: List<ProximityEventEntity>) {
+    val gridLineColor = SentinelPurplePrimary.copy(alpha = 0.15f)
+    val pathColor = SentinelPurplePrimary.copy(alpha = 0.6f)
+    val pointColor = SentinelAlertRedBorder
+    val userColor = SentinelSuccessGreen
 
     Canvas(modifier = Modifier.fillMaxSize()) {
         val width = size.width

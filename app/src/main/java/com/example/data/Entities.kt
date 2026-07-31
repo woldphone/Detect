@@ -45,7 +45,7 @@ data class ProximityEventEntity(
 )
 
 @Entity(tableName = "ignored_devices")
-data class IgnoredDeviceEntity(
+data class WhitelistedDeviceEntity(
     @PrimaryKey val macAddress: String,
     val deviceName: String,
     val addedAt: Long,
