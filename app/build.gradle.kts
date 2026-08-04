@@ -13,12 +13,15 @@ android {
   namespace = "com.example"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
+  val runNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+  val runName = System.getenv("GITHUB_RUN_NUMBER")?.let { "1.0.$it" } ?: "1.0"
+
   defaultConfig {
     applicationId = "com.aistudio.bletrackerguard.xkqz"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    versionCode = runNumber
+    versionName = runName
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

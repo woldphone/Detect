@@ -156,6 +156,27 @@ class TrackerViewModel(application: Application) : AndroidViewModel(application)
         stopMockScanningLoop()
         scannerSimulationJob = viewModelScope.launch {
             var tick = 0
+
+            // Immediate initial discovery on startup for instant visual feedback
+            val rawRssiInitial1 = Random.nextInt(-75, -55)
+            repository.processScannedDevice(
+                macAddress = "E3:42:1B:90:05:A1",
+                name = "Sony WH-1000XM4",
+                deviceType = "Audio Device",
+                rssi = rawRssiInitial1,
+                currentLat = baseLat + 0.0001,
+                currentLon = baseLon - 0.0001
+            )
+            val rawRssiInitial2 = Random.nextInt(-70, -50)
+            repository.processScannedDevice(
+                macAddress = "D8:96:A7:24:FC:F0",
+                name = "Apple AirTag (Unrecognized)",
+                deviceType = "AirTag / Smart Tag",
+                rssi = rawRssiInitial2,
+                currentLat = baseLat - 0.00005,
+                currentLon = baseLon + 0.00005
+            )
+
             while (true) {
                 // Read current motion state and throttle scan frequency
                 val currentMotion = _motionState.value

@@ -27,10 +27,14 @@ import androidx.compose.ui.unit.sp
 import com.example.data.BleDeviceEntity
 import com.example.ui.TrackerTab
 import com.example.ui.TrackerViewModel
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.example.ui.components.AppHeader
 import com.example.ui.components.CriticalAlertCard
 import com.example.ui.components.ProximityMonitorCard
 import com.example.ui.components.StatsSummaryRow
+import com.example.ui.components.SettingsDialog
 import com.example.ui.theme.*
 
 @Composable
@@ -50,6 +54,17 @@ fun DashboardScreen(
     val downloadProgress by viewModel.downloadProgress.collectAsState()
     val downloadState by viewModel.downloadState.collectAsState()
 
+    var showSettingsDialog by remember { mutableStateOf(false) }
+
+    if (showSettingsDialog) {
+        SettingsDialog(
+            viewModel = viewModel,
+            isScanning = isScanning,
+            motionState = motionState,
+            onDismiss = { showSettingsDialog = false }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -60,7 +75,7 @@ fun DashboardScreen(
             isScanning = isScanning,
             onToggleScan = { viewModel.toggleScan() },
             onOpenSettings = {
-                Toast.makeText(context, "Sentinel Guard Settings Open", Toast.LENGTH_SHORT).show()
+                showSettingsDialog = true
             }
         )
 
