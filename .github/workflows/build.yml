@@ -1,4 +1,4 @@
-name: Android Build Pipeline
+name: Android Build & Auto-Update Pipeline
 
 on:
   push:
@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ "main", "master" ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -34,7 +37,32 @@ jobs:
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Upload Debug APK
+      - name: Deploy to build-artifacts branch
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/jules-')
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          mkdir -p deploy
+          cp app/build/outputs/apk/debug/app-debug.apk deploy/app-debug.apk
+
+          cat <<EOF > deploy/update_metadata.json
+          {
+            "versionCode": ${{ github.run_number }},
+            "versionName": "1.0.${{ github.run_number }}",
+            "downloadUrl": "https://raw.githubusercontent.com/${{ github.repository }}/build-artifacts/app-debug.apk"
+          }
+          EOF
+
+          cd deploy
+          git init
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git checkout -b build-artifacts
+          git add .
+          git commit -m "Deploy automated build #${{ github.run_number }} [skip ci]"
+          git push --force origin build-artifacts
+
+      - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: debug-apk

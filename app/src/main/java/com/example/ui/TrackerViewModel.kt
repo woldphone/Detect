@@ -7,6 +7,7 @@ import com.example.data.BleDeviceEntity
 import com.example.data.BleRepository
 import com.example.data.CrashLogger
 import com.example.data.ProximityEventEntity
+import com.example.data.UpdateEngine
 import com.example.data.WhitelistedDeviceEntity
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -37,6 +38,12 @@ class TrackerViewModel(application: Application) : AndroidViewModel(application)
     // Context-Aware Motion State ("WALKING" vs "STILL")
     private val _motionState = MutableStateFlow("WALKING")
     val motionState: StateFlow<String> = _motionState
+
+    // Auto-Update flow bindings
+    val isUpdateAvailable: StateFlow<Boolean> = UpdateEngine.isUpdateAvailable
+    val latestVersionName: StateFlow<String> = UpdateEngine.latestVersionName
+    val downloadProgress: StateFlow<Float> = UpdateEngine.downloadProgress
+    val downloadState: StateFlow<String> = UpdateEngine.downloadState
 
     // Database flow bindings
     val allDevices: StateFlow<List<BleDeviceEntity>> = repository.allDevices
@@ -72,6 +79,11 @@ class TrackerViewModel(application: Application) : AndroidViewModel(application)
     init {
         CrashLogger.logSystemEvent("TrackerViewModel Initialized")
         startMockScanningLoop()
+
+        // Auto-Check for updates on initialization
+        viewModelScope.launch {
+            UpdateEngine.checkForUpdates()
+        }
     }
 
     fun setTab(tab: TrackerTab) {
@@ -124,6 +136,12 @@ class TrackerViewModel(application: Application) : AndroidViewModel(application)
     fun setMotionState(state: String) {
         _motionState.value = state
         CrashLogger.logSystemEvent("Context Activity changed to: $state. Scan rate auto-throttled.")
+    }
+
+    fun triggerUpdateDownload(context: android.content.Context) {
+        viewModelScope.launch {
+            UpdateEngine.downloadAndInstallUpdate(context)
+        }
     }
 
     fun readDiagnostics(): String {

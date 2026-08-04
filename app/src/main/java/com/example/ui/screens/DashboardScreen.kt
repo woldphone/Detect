@@ -2,12 +2,15 @@ package com.example.ui.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Hotel
+import androidx.compose.material.icons.filled.SystemUpdateAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -41,6 +44,12 @@ fun DashboardScreen(
     val stats by viewModel.smartLoggingStats.collectAsState()
     val motionState by viewModel.motionState.collectAsState()
 
+    // Auto-update states
+    val isUpdateAvailable by viewModel.isUpdateAvailable.collectAsState()
+    val latestVersionName by viewModel.latestVersionName.collectAsState()
+    val downloadProgress by viewModel.downloadProgress.collectAsState()
+    val downloadState by viewModel.downloadState.collectAsState()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -66,6 +75,132 @@ fun DashboardScreen(
                     .padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // 1. In-App Premium Auto-Update Banner Card
+                if (isUpdateAvailable) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, SentinelPurplePrimary.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+                            .testTag("auto_update_banner_card"),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = SentinelCardBg)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SystemUpdateAlt,
+                                    contentDescription = "Update Available",
+                                    tint = SentinelPurplePrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = "NEW VERSION DETECTED (v$latestVersionName)",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = SentinelPurplePrimary,
+                                    letterSpacing = 1.sp
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "A new automated build is available from GitHub. Upgrade instantly without re-downloading manually.",
+                                fontSize = 11.sp,
+                                color = SentinelTextMuted
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            when (downloadState) {
+                                "DOWNLOADING" -> {
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        LinearProgressIndicator(
+                                            progress = { downloadProgress },
+                                            modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                                            color = SentinelPurplePrimary,
+                                            trackColor = SentinelBg
+                                        )
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = "Downloading debug package...",
+                                                fontSize = 10.sp,
+                                                color = SentinelTextMuted
+                                            )
+                                            Text(
+                                                text = "${(downloadProgress * 100).toInt()}%",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = SentinelPurplePrimary
+                                            )
+                                        }
+                                    }
+                                }
+                                "SUCCESS" -> {
+                                    Text(
+                                        text = "Download complete! Opening package installer...",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = SentinelSuccessGreen
+                                    )
+                                }
+                                "ERROR" -> {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Download failed. Please try again.",
+                                            fontSize = 11.sp,
+                                            color = SentinelAlertText
+                                        )
+                                        Button(
+                                            onClick = { viewModel.triggerUpdateDownload(context) },
+                                            colors = ButtonDefaults.buttonColors(containerColor = SentinelAlertText, contentColor = Color.Black),
+                                            shape = RoundedCornerShape(8.dp),
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                            modifier = Modifier.height(30.dp)
+                                        ) {
+                                            Text("Retry", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                                else -> {
+                                    Button(
+                                        onClick = { viewModel.triggerUpdateDownload(context) },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = SentinelPurplePrimary,
+                                            contentColor = Color.Black
+                                        ),
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("update_now_button")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CloudDownload,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "UPDATE & REINSTALL NOW",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Context Engine (Scan Throttling Selector)
                 Card(
                     modifier = Modifier.fillMaxWidth().testTag("context_engine_card"),

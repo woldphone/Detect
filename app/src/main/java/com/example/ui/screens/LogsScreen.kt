@@ -18,10 +18,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -38,7 +38,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -67,6 +69,7 @@ fun LogsScreen(
     clearDiagnostics: () -> Unit = {}
 ) {
     var showDiagnosticsDialog by remember { mutableStateOf(false) }
+    val clipboardManager = LocalClipboardManager.current
 
     Column(
         modifier = Modifier
@@ -283,13 +286,24 @@ fun LogsScreen(
                 }
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        clearDiagnostics()
-                        showDiagnosticsDialog = false
-                    }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Clear Logs", color = SentinelAlertText, fontWeight = FontWeight.Bold)
+                    TextButton(
+                        onClick = {
+                            clipboardManager.setText(AnnotatedString(diagnosticsText))
+                        }
+                    ) {
+                        Text("Copy", color = SentinelPurplePrimary, fontWeight = FontWeight.Bold)
+                    }
+                    TextButton(
+                        onClick = {
+                            clearDiagnostics()
+                            showDiagnosticsDialog = false
+                        }
+                    ) {
+                        Text("Clear", color = SentinelAlertText, fontWeight = FontWeight.Bold)
+                    }
                 }
             },
             dismissButton = {
